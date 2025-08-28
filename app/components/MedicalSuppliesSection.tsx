@@ -17,6 +17,8 @@ export default function MedicalSuppliesSection() {
     name: "",
     description: "",
     quantity: 1,
+    expiryDate: "",
+    isExpiringSoon: false,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,6 +38,8 @@ export default function MedicalSuppliesSection() {
       name: "",
       description: "",
       quantity: 1,
+      expiryDate: "",
+      isExpiringSoon: false,
     });
     setShowModal(false);
   };
@@ -46,6 +50,8 @@ export default function MedicalSuppliesSection() {
       name: item.name,
       description: item.description || "",
       quantity: item.quantity,
+      expiryDate: item.expiryDate || "",
+      isExpiringSoon: item.isExpiringSoon || false,
     });
     setShowModal(true);
   };
@@ -62,6 +68,8 @@ export default function MedicalSuppliesSection() {
       name: "",
       description: "",
       quantity: 1,
+      expiryDate: "",
+      isExpiringSoon: false,
     });
     setShowModal(true);
   };
@@ -133,6 +141,35 @@ export default function MedicalSuppliesSection() {
                   />
                 </div>
 
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={formData.isExpiringSoon}
+                        onChange={(e) => setFormData({ ...formData, isExpiringSoon: e.target.checked })}
+                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="ml-2 text-sm font-medium text-gray-700">
+                        Son kullanım tarihi yaklaşıyor
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const month = now.toLocaleString('tr-TR', { month: 'long' });
+                        const year = now.getFullYear();
+                        alert(`Son değişiklik: ${month} ${year}`);
+                      }}
+                      className="text-indigo-600 hover:text-indigo-800 text-sm"
+                      title="Son değişiklik bilgisi"
+                    >
+                      ℹ️
+                    </button>
+                  </div>
+                </div>
+
                 <div className="flex justify-end space-x-3 pt-4">
                   <button
                     type="button"
@@ -180,6 +217,9 @@ export default function MedicalSuppliesSection() {
                     <p><strong>Miktar:</strong> {supply.quantity} kutu</p>
                     {supply.description && (
                       <p><strong>Açıklama:</strong> {supply.description}</p>
+                    )}
+                    {supply.isExpiringSoon && (
+                      <p className="text-yellow-600 font-medium">⚠️ Son kullanım tarihi yaklaşıyor</p>
                     )}
                   </div>
                   

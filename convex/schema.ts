@@ -7,6 +7,8 @@ export default defineSchema({
     name: v.string(),
     description: v.optional(v.string()),
     quantity: v.number(),
+    expiryDate: v.optional(v.string()),
+    isExpiringSoon: v.optional(v.boolean()),
     isActive: v.boolean(),
     createdAt: v.number(),
     updatedAt: v.number(),

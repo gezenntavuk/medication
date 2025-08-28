@@ -19,6 +19,8 @@ export const create = mutation({
     name: v.string(),
     description: v.optional(v.string()),
     quantity: v.number(),
+    expiryDate: v.optional(v.string()),
+    isExpiringSoon: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -38,6 +40,8 @@ export const update = mutation({
     name: v.optional(v.string()),
     description: v.optional(v.string()),
     quantity: v.optional(v.number()),
+    expiryDate: v.optional(v.string()),
+    isExpiringSoon: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const { id, ...updates } = args;
