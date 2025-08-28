@@ -13,17 +13,27 @@ export const getAll = query({
   },
 });
 
+// Tüm ilaçları getir (autocomplete için)
+export const getAllForAutocomplete = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("activeMedications")
+      .order("desc")
+      .collect();
+  },
+});
+
 // Yeni aktif ilaç ekle
 export const create = mutation({
   args: {
     name: v.string(),
     genericName: v.optional(v.string()),
-    dosage: v.string(),
-    frequency: v.optional(v.string()),
-    duration: v.optional(v.string()),
+    frequency: v.string(),
+    frequencyCount: v.number(),
     prescribedFor: v.string(),
     prescribedBy: v.optional(v.string()),
-    startDate: v.optional(v.string()),
+    startDate: v.string(),
     endDate: v.optional(v.string()),
     instructions: v.optional(v.string()),
     sideEffects: v.optional(v.string()),
@@ -45,9 +55,8 @@ export const update = mutation({
     id: v.id("activeMedications"),
     name: v.optional(v.string()),
     genericName: v.optional(v.string()),
-    dosage: v.optional(v.string()),
     frequency: v.optional(v.string()),
-    duration: v.optional(v.string()),
+    frequencyCount: v.optional(v.number()),
     prescribedFor: v.optional(v.string()),
     prescribedBy: v.optional(v.string()),
     startDate: v.optional(v.string()),

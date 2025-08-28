@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import PersonDetailPage from "./PersonDetailPage";
 
 export default function FamilyMembersSection() {
+  const [selectedPerson, setSelectedPerson] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   
@@ -117,6 +119,16 @@ export default function FamilyMembersSection() {
       medicalConditions: formData.medicalConditions.filter((_, i) => i !== index),
     });
   };
+
+  // Kişi detay sayfasını göster
+  if (selectedPerson) {
+    return (
+      <PersonDetailPage
+        personName={selectedPerson}
+        onBack={() => setSelectedPerson(null)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -310,7 +322,8 @@ export default function FamilyMembersSection() {
               {familyMembers?.map((member: any) => (
                 <div
                   key={member._id}
-                  className="border border-gray-200 rounded-lg p-4"
+                  className="border border-gray-200 rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => setSelectedPerson(member.name)}
                 >
                   <div className="flex justify-between items-start mb-3">
                     <div>
@@ -358,13 +371,19 @@ export default function FamilyMembersSection() {
                   
                   <div className="flex justify-end space-x-2 mt-3">
                     <button
-                      onClick={() => handleEdit(member)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(member);
+                      }}
                       className="text-sm text-purple-600 hover:text-purple-900"
                     >
                       ✏️ Düzenle
                     </button>
                     <button
-                      onClick={() => handleDelete(member._id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(member._id);
+                      }}
                       className="text-sm text-red-600 hover:text-red-900"
                     >
                       🗑️ Sil

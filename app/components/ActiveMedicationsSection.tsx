@@ -5,10 +5,11 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
 export default function ActiveMedicationsSection() {
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   
   const activeMedications = useQuery(api.activeMedications.getAll);
+  const medicalSupplies = useQuery(api.medicalSupplies.getAll);
   const familyMembers = useQuery(api.familyMembers.getAll);
   const createMedication = useMutation(api.activeMedications.create);
   const updateMedication = useMutation(api.activeMedications.update);
@@ -16,75 +17,59 @@ export default function ActiveMedicationsSection() {
 
   const [formData, setFormData] = useState({
     name: "",
-    genericName: "",
-    dosage: "",
-    frequency: "",
-    duration: "",
     prescribedFor: "",
-    prescribedBy: "",
-    startDate: "",
-    endDate: "",
+    frequency: "daily", // Sıklık: daily, weekly
+    frequencyCount: 1, // Kaç kez: 1-7 arası
+    startDate: new Date().toISOString().split('T')[0], // Başlangıç tarihi
     instructions: "",
-    sideEffects: "",
   });
 
-  const frequencies = [
-    "Günde 1 kez",
-    "Günde 2 kez",
-    "Günde 3 kez",
-    "Günde 4 kez",
-    "Haftada 1 kez",
-    "Haftada 2 kez",
-    "Haftada 3 kez",
-    "İhtiyaç halinde",
-    "Diğer",
-  ];
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [filteredMedications, setFilteredMedications] = useState<any[]>([]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    const medicationData = {
+      ...formData,
+      genericName: "",
+      prescribedBy: "",
+      endDate: "",
+      sideEffects: "",
+    };
+    
     if (editingItem) {
       await updateMedication({
         id: editingItem._id,
-        ...formData,
+        ...medicationData,
       });
       setEditingItem(null);
     } else {
-      await createMedication(formData);
+      await createMedication(medicationData);
     }
     
     setFormData({
       name: "",
-      genericName: "",
-      dosage: "",
-      frequency: "",
-      duration: "",
       prescribedFor: "",
-      prescribedBy: "",
-      startDate: "",
-      endDate: "",
+      frequency: "daily",
+      frequencyCount: 1,
+      startDate: new Date().toISOString().split('T')[0],
       instructions: "",
-      sideEffects: "",
     });
-    setShowAddForm(false);
+    setShowModal(false);
   };
 
   const handleEdit = (item: any) => {
     setEditingItem(item);
     setFormData({
       name: item.name,
-      genericName: item.genericName || "",
-      dosage: item.dosage,
-      frequency: item.frequency,
-      duration: item.duration || "",
       prescribedFor: item.prescribedFor,
-      prescribedBy: item.prescribedBy || "",
-      startDate: item.startDate,
-      endDate: item.endDate || "",
+      frequency: item.frequency || "daily",
+      frequencyCount: item.frequencyCount || 1,
+      startDate: item.startDate || new Date().toISOString().split('T')[0],
       instructions: item.instructions || "",
-      sideEffects: item.sideEffects || "",
     });
-    setShowAddForm(true);
+    setShowModal(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -93,13 +78,41 @@ export default function ActiveMedicationsSection() {
     }
   };
 
-  const isEndingSoon = (endDate: string) => {
-    if (!endDate) return false;
-    const end = new Date(endDate);
-    const now = new Date();
-    const diffTime = end.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays <= 7 && diffDays >= 0;
+  const openAddModal = () => {
+    setEditingItem(null);
+    setFormData({
+      name: "",
+      prescribedFor: "",
+      frequency: "daily",
+      frequencyCount: 1,
+      startDate: new Date().toISOString().split('T')[0],
+      instructions: "",
+    });
+    setShowModal(true);
+  };
+
+  const handleMedicationNameChange = (value: string) => {
+    setFormData({ ...formData, name: value });
+    
+    if (value.length > 0 && medicalSupplies && Array.isArray(medicalSupplies)) {
+      const filtered = medicalSupplies.filter((supply: any) =>
+        supply.name.toLowerCase().includes(value.toLowerCase())
+      );
+      setFilteredMedications(filtered);
+      setShowAutocomplete(filtered.length > 0);
+    } else {
+      setShowAutocomplete(false);
+      setFilteredMedications([]);
+    }
+  };
+
+  const selectMedication = (supply: any) => {
+    setFormData({
+      ...formData,
+      name: supply.name,
+      instructions: supply.description || formData.instructions, // Use description as instructions
+    });
+    setShowAutocomplete(false);
   };
 
   return (
@@ -108,190 +121,167 @@ export default function ActiveMedicationsSection() {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">💊 Aktif İlaçlar</h2>
         <button
-          onClick={() => setShowAddForm(!showAddForm)}
+          onClick={openAddModal}
           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
         >
-          {showAddForm ? "❌ İptal" : "➕ Yeni İlaç Ekle"}
+          ➕ Yeni İlaç Ekle
         </button>
       </div>
 
-      {/* Add/Edit Form */}
-      {showAddForm && (
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            {editingItem ? "İlaç Düzenle" : "Yeni İlaç Ekle"}
-          </h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  İlaç Adı *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 text-black"
-                />
-              </div>
+      {/* Modal */}
+      {showModal && (
+        <div 
+          className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+          onClick={() => setShowAutocomplete(false)}
+        >
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                {editingItem ? "İlaç Düzenle" : "Yeni İlaç Ekle"}
+              </h3>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="relative">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    İlaç Adı *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => handleMedicationNameChange(e.target.value)}
+                    onFocus={() => {
+                      if (formData.name.length > 0 && medicalSupplies) {
+                        const filtered = medicalSupplies.filter((supply: any) =>
+                          supply.name.toLowerCase().includes(formData.name.toLowerCase())
+                        );
+                        setFilteredMedications(filtered);
+                        setShowAutocomplete(filtered.length > 0);
+                      }
+                    }}
+                    className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 text-black p-2"
+                    placeholder="İlaç adı"
+                  />
+                  
+                  {/* Autocomplete Dropdown */}
+                  {showAutocomplete && filteredMedications.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                      {filteredMedications.map((supply: any) => (
+                        <div
+                          key={supply._id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            selectMedication(supply);
+                          }}
+                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                        >
+                          <div className="font-medium text-gray-900">{supply.name}</div>
+                          <div className="text-sm text-gray-500">
+                            {supply.quantity} kutu - {supply.description || 'Açıklama yok'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Jenerik Adı
-                </label>
-                <input
-                  type="text"
-                  value={formData.genericName}
-                  onChange={(e) => setFormData({ ...formData, genericName: e.target.value })}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 text-black"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Kullanan Kişi *
+                  </label>
+                  <select
+                    required
+                    value={formData.prescribedFor}
+                    onChange={(e) => setFormData({ ...formData, prescribedFor: e.target.value })}
+                    className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 text-black p-2"
+                  >
+                    <option value="">Kişi Seçin</option>
+                    {familyMembers?.map((member: any) => (
+                      <option key={member._id} value={member.name}>
+                        {member.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Doz *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.dosage}
-                  onChange={(e) => setFormData({ ...formData, dosage: e.target.value })}
-                  placeholder="Örn: 500mg, 1 tablet"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 text-black"
-                />
-              </div>
+                                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Sıklık *
+                              </label>
+                              <select
+                                required
+                                value={formData.frequency}
+                                onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
+                                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 text-black p-2"
+                              >
+                                <option value="daily">Günlük</option>
+                                <option value="weekly">Haftalık</option>
+                              </select>
+                            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Kullanım Sıklığı *
-                </label>
-                <select
-                  required
-                  value={formData.frequency}
-                  onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 text-black"
-                >
-                  <option value="">Sıklık Seçin</option>
-                  {frequencies.map((frequency) => (
-                    <option key={frequency} value={frequency}>
-                      {frequency}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Kaç Kez *
+                              </label>
+                              <select
+                                required
+                                value={formData.frequencyCount}
+                                onChange={(e) => setFormData({ ...formData, frequencyCount: parseInt(e.target.value) || 1 })}
+                                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 text-black p-2"
+                              >
+                                <option value={1}>1 kez</option>
+                                <option value={2}>2 kez</option>
+                                <option value={3}>3 kez</option>
+                                <option value={4}>4 kez</option>
+                                <option value={5}>5 kez</option>
+                                <option value={6}>6 kez</option>
+                                <option value={7}>7 kez</option>
+                              </select>
+                            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Kim İçin Reçete Edildi *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.prescribedFor}
-                  onChange={(e) => setFormData({ ...formData, prescribedFor: e.target.value })}
-                  placeholder="Örn: Anne, Baba, Çocuk"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 text-black"
-                />
-              </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Başlangıç Tarihi *
+                              </label>
+                              <input
+                                type="date"
+                                required
+                                value={formData.startDate}
+                                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 text-black p-2"
+                              />
+                            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Kim Reçete Etti
-                </label>
-                <input
-                  type="text"
-                  value={formData.prescribedBy}
-                  onChange={(e) => setFormData({ ...formData, prescribedBy: e.target.value })}
-                  placeholder="Örn: Dr. Ahmet Yılmaz"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 text-black"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Not
+                  </label>
+                  <textarea
+                    value={formData.instructions}
+                    onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
+                    rows={3}
+                    className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 text-black p-2"
+                    placeholder="Özel talimatlar, yan etkiler..."
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Başlama Tarihi *
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 text-black"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Bitiş Tarihi
-                </label>
-                <input
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 text-black"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Kullanım Süresi
-                </label>
-                <input
-                  type="text"
-                  value={formData.duration}
-                  onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-                  placeholder="Örn: 7 gün, 1 ay"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 text-black"
-                />
-              </div>
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    İptal
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+                  >
+                    {editingItem ? "Güncelle" : "Ekle"}
+                  </button>
+                </div>
+              </form>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Özel Talimatlar
-              </label>
-              <textarea
-                value={formData.instructions}
-                onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-                rows={3}
-                placeholder="Özel kullanım talimatları, yemekle birlikte alınması gerekiyor mu, vs..."
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 text-black"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Yan Etkiler
-              </label>
-              <textarea
-                value={formData.sideEffects}
-                onChange={(e) => setFormData({ ...formData, sideEffects: e.target.value })}
-                rows={3}
-                placeholder="Bilinen yan etkiler..."
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 text-black"
-              />
-            </div>
-
-            <div className="flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAddForm(false);
-                  setEditingItem(null);
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                İptal
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
-              >
-                {editingItem ? "Güncelle" : "Ekle"}
-              </button>
-            </div>
-          </form>
+          </div>
         </div>
       )}
 
@@ -311,43 +301,24 @@ export default function ActiveMedicationsSection() {
               {activeMedications?.map((medication: any) => (
                 <div
                   key={medication._id}
-                  className={`border rounded-lg p-4 ${
-                    isEndingSoon(medication.endDate) ? "border-red-300 bg-red-50" : "border-gray-200"
-                  }`}
+                  className="border border-gray-200 rounded-lg p-4"
                 >
                   <div className="flex justify-between items-start mb-2">
                     <h4 className="font-medium text-gray-900">{medication.name}</h4>
-                    {isEndingSoon(medication.endDate) && (
-                      <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
-                        🚨 Yakında Bitecek
-                      </span>
-                    )}
                   </div>
                   
-                  <div className="space-y-1 text-sm text-gray-600">
-                    {medication.genericName && (
-                      <p><strong>Jenerik Adı:</strong> {medication.genericName}</p>
-                    )}
-                    <p><strong>Doz:</strong> {medication.dosage}</p>
-                    <p><strong>Sıklık:</strong> {medication.frequency}</p>
-                    <p><strong>Kim İçin:</strong> {medication.prescribedFor}</p>
-                    {medication.prescribedBy && (
-                      <p><strong>Reçete Eden:</strong> {medication.prescribedBy}</p>
-                    )}
-                    <p><strong>Başlama:</strong> {new Date(medication.startDate).toLocaleDateString('tr-TR')}</p>
-                    {medication.endDate && (
-                      <p><strong>Bitiş:</strong> {new Date(medication.endDate).toLocaleDateString('tr-TR')}</p>
-                    )}
-                    {medication.duration && (
-                      <p><strong>Süre:</strong> {medication.duration}</p>
-                    )}
-                    {medication.instructions && (
-                      <p><strong>Talimatlar:</strong> {medication.instructions}</p>
-                    )}
-                    {medication.sideEffects && (
-                      <p><strong>Yan Etkiler:</strong> {medication.sideEffects}</p>
-                    )}
-                  </div>
+                                                <div className="space-y-1 text-sm text-gray-600">
+                                <p><strong>Kullanan:</strong> {medication.prescribedFor}</p>
+                                <p><strong>Sıklık:</strong> {
+                                  medication.frequency === "daily" ? `Günde ${medication.frequencyCount} kez` :
+                                  medication.frequency === "weekly" ? `Haftada ${medication.frequencyCount} kez` :
+                                  `${medication.frequencyCount} kez`
+                                }</p>
+                                <p><strong>Başlangıç:</strong> {new Date(medication.startDate).toLocaleDateString('tr-TR')}</p>
+                                {medication.instructions && (
+                                  <p><strong>Not:</strong> {medication.instructions}</p>
+                                )}
+                              </div>
                   
                   <div className="flex justify-end space-x-2 mt-3">
                     <button

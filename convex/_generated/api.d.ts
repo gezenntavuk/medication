@@ -14,6 +14,7 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as activeMedications from "../activeMedications.js";
+import type * as dailyTracking from "../dailyTracking.js";
 import type * as familyMembers from "../familyMembers.js";
 import type * as medicalSupplies from "../medicalSupplies.js";
 
@@ -27,6 +28,7 @@ import type * as medicalSupplies from "../medicalSupplies.js";
  */
 declare const fullApi: ApiFromModules<{
   activeMedications: typeof activeMedications;
+  dailyTracking: typeof dailyTracking;
   familyMembers: typeof familyMembers;
   medicalSupplies: typeof medicalSupplies;
 }>;
